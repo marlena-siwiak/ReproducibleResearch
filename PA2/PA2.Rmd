@@ -1,0 +1,80 @@
+The influence of weather events on population health and economics in the United States.
+========================================================
+
+
+### Synopsis
+The aim of this study is to determine: (i) which types of events across the United States are most harmful with respect to population health, and (ii) which types of events have the greatest economic consequences. After organizing the reported events into broader cathegories, we identified event types causing most harm to population health and economy. The most harmful events for public health across US are tornados and typhoons, which over the analyzed decades killed the largest number of people and injuried over 80,000 people - about 4 times larger than any other event type. In case of economic consequences, tornados, floods, storms and winds caused the largest property damage of about 2 000 mln dollars each, while the largest crop damage was done by hails and floods (~ 500 mln dollars). To sum up, tornados and typhoons may be considered the most harmful natural disasters for US public health and economy.
+
+
+
+
+### Data Processing
+Loading data from the given url. To make things faster, only columns that will be needed in the analysis were selected.
+
+```{r readdata, cache=TRUE}
+url <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(url, "StormData.csv.bz2")
+d<-read.table("StormData.csv.bz2", sep=",", header=TRUE, colClasses = c(rep("NULL", 7), "factor", rep("NULL", 14), rep("numeric", 3), "NULL", "numeric", rep("NULL", 10)))
+```
+
+The curation of the EVTYPE variable and reduction the number of event types. All data errors and event types difficult to classify are treated as NA.
+
+```{r loaddata, cache=TRUE}
+n <- as.factor(toupper(d$EVTYPE))
+n<-gsub(".*THUNDERSTORM|THUNDERSTORM.*|.*THUNDERSTORM.*|STORM.*|.*STORM|.*STORM.*|LIGHT.*|.*LIGHT|LIGNT.*|STORMNING", "STORM", n)
+n<-gsub(".*WIND|WIND.*|.*WIND.*|HURRICANE.*|.*HURRICANE|.*HURRICANE.*", "WIND", n)
+n<-gsub(".*FLOOD|FLOOD.*|.*FLOOD.*|.*FLOOOD.*|DAM.*|.*STREAM.*", "FLOOD", n)
+n<-gsub(".*FIRE|FIRE.*|.*FIRE.*", "FIRE", n)
+n<-gsub(".*TORNADO|TORNADO.*|.*TORNADO.*|TORNDAO|.*WATERSPOUT|WATERSPOUT.*|.*WATERSPOUT.*|TYPHOON|LANDSPOUT|FUNNEL.*|GUSTNADO.*|.*FUNNEL.*|WAYTERSPOUT|WATER SPOUT", "TORNADO", n)
+n<-gsub(".*HAIL|HAIL.*|.*HAIL.*", "HAIL", n)
+n<-gsub(".*SLIDE|SLIDE.*|.*SLIDE.*|LANDSLUMP|.*EROSI.*", "LANDSLIDE", n)
+n<-gsub(".*SNOW|SNOW.*|.*SNOW.*|.*BLIZZARD|BLIZZARD.*|.*BLIZZARD.*|.*ICE|ICE.*|.*ICE.*|.*FROST|FROST.*|,*FROST.*|ICY.*|WINTER.*|.*WINTER|.*WINTER.*|WINTRY.*|FREEZING.*|GLAZE|COOL.*|SLEET.*|AVALANC.*", "SNOW/ICE", n)
+n<-gsub(".*COLD|COLD.*|.*COLD.*|.*FREEZE|FREEZE.*|HYPOTHERMIA|.*EXPOSURE|LOW TEMP.*", "COLD", n)
+n<-gsub("VOLCANIC.*", "VOLCANO", n)
+n<-gsub(".*RAIN|RAIN.*|.*RAIN.*|.*PRECIPITATION|PRECIPITATION.*|.*PRECIPITATION.*|PRECIP.*|.*SHOWER|SHOWER.*|.*SHOWER.*|.*WET|WET.*|.*WET.*|MIXED RAIN|HEAVY RAIN", "RAIN", n)
+n<-gsub(".*WARM|WARM.*|.*WARM.*|.*HOT|HOT.*|.*HOT.*|DRY.*|.*DRY|.*DRY.*|DROUGHT.*|.*DROUGHT|.*DROUGHT.*|HEAT.*|.*HEAT|.*HEAT.*|HYPERTHERMIA.*|.*HIGH TEMPERATURE.*|DRI.*|DUST.*|DUST.*|.*DUST.*", "WARM", n)
+n<-gsub("WAVES.*|.*WAVES|.*WAVES.*|.*TIDE|TIDE.*|.*TIDE.*|COASTAL.*|.*TIDE.*|.*CURRENT.*|.*SEA.*|TSUNAMI|.*SEAS|.*SURF|.*SURF.*|MARINE.*|.*WAVE", "ROUGH SEA", n)
+n<-gsub("STORM.*", "STORM", n)
+n<-gsub(".*PRECIPITATION", "RAIN", n)
+n<-gsub("RECORD SNOW/ICE", "SNOW/ICE", n)
+
+n <- as.factor(n)
+n[n!="WIND" & n!="STORM" & n!="FLOOD" & n!="FIRE" & n!="TORNADO" & n!="HAIL" & n!="LANDSLIDE" & n!="SNOW/ICE" & n!="COLD" & n!= "VOLCANO" & n!="PRECIPITATION" & n!="WARM" & n!="ROUGH SEA"]<-NA
+NEWEV <- as.factor(tolower(as.character(n)))
+d<-cbind(d, NEWEV)
+```
+
+### Results
+#### Natural disasters and public health
+To determine the most harmful events for public health, a barplot of the number of victims per event was created, separately for people killed and injuried during the event.
+
+```{r plotvictims}
+fatalities <- tapply(d$FATALITIES, d$NEWEV, sum, na.rm=TRUE)
+injuries <- tapply(d$INJURIES, d$NEWEV, sum, na.rm=TRUE)
+victims <- rbind(fatalities, injuries)
+maxfat <- as.character(max(victims[1,], na.rm=TRUE))
+maxinj <- as.character(max(victims[2,], na.rm=TRUE))
+
+barplot(victims, beside=TRUE, legend.text=TRUE, ylab="nr of victims", main="Events and public health", xlab="", cex.axis=0.8, las=2, cex.lab=0.8)
+```
+
+
+Figure 1: The plot shows the total number of people killed and injuried during different types of events across analyzed decaded in the USA. The most harmful were tornados and typhoons, which killed `r maxfat` people, and injuried `r maxinj` people, which is about 4 times more than the second most influential event type - storm. Another harmful event types are storms, floods, wind and hurricanes, and heat for which the number of injuries ranges between 5,000 and 10,000 (number of deaths is much smaller and does not exceed 1000-2000).
+
+
+#### Natural disasters and economy
+
+```{r plotdamage}
+property <- tapply(d$PROPDMG/1000, d$NEWEV, sum, na.rm=TRUE)
+crop <- tapply(d$CROPDMG/1000, d$NEWEV, sum, na.rm=TRUE)
+damage <- rbind(property, crop)
+maxpro <- as.character(round(max(damage[1,], na.rm=TRUE),0))
+maxcro <- as.character(round(max(damage[2,], na.rm=TRUE),0))
+
+
+barplot(damage, beside=TRUE, legend.text=TRUE, ylab="damage in mln dollars", main="Events and economy", xlab="", cex.axis=0.8, las=2, cex.lab=0.8)
+```
+
+Figure 2: The plot shows the values of property and crop damage caused by different types of events. Again, the most harmful are tornados, however, this time their infuence is not as overwhelming as in case of public health. In particul, tornados caused `r maxpro` mln dollars of property damage, and `r maxcro` mln dollars of crop damage. Other most harmful events are floods, storms and winds, causing about 2 000 mln dollars of property damage. In case of crop damage the second and third most harmful events are hails and floods, causing about 500 mln dollars lost.
+
+
